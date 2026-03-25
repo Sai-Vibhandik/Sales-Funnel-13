@@ -144,7 +144,7 @@ export default function TaskDetailPage() {
   // Fetch subcategories for AI frameworks
   const fetchSubCategories = async () => {
     try {
-      const response = await frameworkCategoryService.getFrameworkCategories();
+      const response = await frameworkCategoryService.getCategories();
       setSubCategories(response.data || []);
     } catch (error) {
       console.error('Failed to fetch subcategories:', error);

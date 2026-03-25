@@ -18,6 +18,22 @@ exports.generateContentBrief = async (req, res, next) => {
       });
     }
 
+    // Ensure frameworkType is a string (handle array from frontend)
+    let framework = frameworkType;
+    if (Array.isArray(framework)) {
+      framework = framework[0] || '';
+    }
+    if (framework) {
+      framework = String(framework).trim();
+    }
+
+    if (!framework) {
+      return res.status(400).json({
+        success: false,
+        message: 'Framework type must be a valid string'
+      });
+    }
+
     // Get the task with populated project
     const task = await Task.findById(taskId)
       .populate('projectId', 'projectName businessName industry');
@@ -42,7 +58,7 @@ exports.generateContentBrief = async (req, res, next) => {
     }
 
     // Get the framework template
-    const frameworkTemplate = getFrameworkTemplate(frameworkType);
+    const frameworkTemplate = getFrameworkTemplate(framework);
     if (!frameworkTemplate) {
       return res.status(400).json({
         success: false,
@@ -56,8 +72,13 @@ exports.generateContentBrief = async (req, res, next) => {
       const prompt = await Prompt.findById(promptId);
       if (prompt && prompt.isActive) {
         customPrompt = prompt.content;
-        // Increment usage
-        await prompt.incrementUsage();
+        // Increment usage with error handling for corrupted data
+        try {
+          await prompt.incrementUsage();
+        } catch (usageError) {
+          console.warn('Failed to increment prompt usage, continuing anyway:', usageError.message);
+          // Continue even if usage increment fails
+        }
       }
     }
 
@@ -90,21 +111,21 @@ exports.generateContentBrief = async (req, res, next) => {
 
     // Generate the content brief
     const contentBrief = await generateContentBrief({
-      framework: frameworkType,
+      framework,
       frameworkTemplate: customPrompt || frameworkTemplate,
       context
     });
 
     // Save the generated brief to the task
     task.aiPrompt = contentBrief;
-    task.aiFramework = frameworkType;
+    task.aiFramework = framework;
     await task.save();
 
     res.status(200).json({
       success: true,
       data: {
         contentBrief,
-        framework: frameworkType,
+        framework,
         task: task._id
       }
     });
@@ -166,7 +187,16 @@ exports.regenerateContentBrief = async (req, res, next) => {
     }
 
     // Use existing framework or provided one
-    const framework = frameworkType || task.aiFramework;
+    // Handle case where aiFramework might be stored as an array (legacy data)
+    let framework = frameworkType || task.aiFramework;
+
+    // Ensure framework is a string (handle legacy array data)
+    if (Array.isArray(framework)) {
+      framework = framework[0] || '';
+    }
+    if (framework) {
+      framework = String(framework).trim();
+    }
 
     if (!framework) {
       return res.status(400).json({
@@ -184,8 +214,13 @@ exports.regenerateContentBrief = async (req, res, next) => {
       const prompt = await Prompt.findById(promptId);
       if (prompt && prompt.isActive) {
         customPrompt = prompt.content;
-        // Increment usage
-        await prompt.incrementUsage();
+        // Increment usage with error handling for corrupted data
+        try {
+          await prompt.incrementUsage();
+        } catch (usageError) {
+          console.warn('Failed to increment prompt usage, continuing anyway:', usageError.message);
+          // Continue even if usage increment fails
+        }
       }
     }
 

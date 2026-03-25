@@ -143,6 +143,58 @@ const promptSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
+// Pre-validate hook to fix corrupted frameworkType (handle legacy array data)
+// This runs BEFORE validation so we can fix data before Mongoose validates it
+promptSchema.pre('validate', function(next) {
+  // Fix frameworkType if it's stored as an array (legacy data migration)
+  if (Array.isArray(this.frameworkType)) {
+    this.frameworkType = this.frameworkType[0] || undefined;
+  }
+  // Ensure frameworkType is a string if present
+  if (this.frameworkType !== undefined && this.frameworkType !== null && typeof this.frameworkType !== 'string') {
+    this.frameworkType = String(this.frameworkType).trim();
+  }
+  if (this.frameworkType === '') {
+    this.frameworkType = undefined;
+  }
+
+  // Fix category if it's corrupted or invalid
+  const validCategories = ['instagram', 'facebook', 'youtube', 'linkedin', 'landing_page', 'email', 'video', 'general'];
+  if (this.category && !validCategories.includes(this.category)) {
+    this.category = 'general';
+  }
+
+  // Fix platform if it's corrupted or invalid
+  const validPlatforms = ['instagram', 'facebook', 'youtube', 'linkedin', 'google_ads', 'landing_page', 'email', 'video', 'all'];
+  if (this.platform && !validPlatforms.includes(this.platform)) {
+    this.platform = 'all';
+  }
+
+  // Fix creativeType if it's corrupted or invalid
+  const validCreativeTypes = ['image', 'carousel', 'video', 'story', 'reel', 'copy', 'script', 'landing_page', 'email', 'all'];
+  if (this.creativeType && !validCreativeTypes.includes(this.creativeType)) {
+    this.creativeType = 'all';
+  }
+
+  next();
+});
+
+// Pre-save hook to fix corrupted frameworkType (handle legacy array data)
+promptSchema.pre('save', function(next) {
+  // Fix frameworkType if it's stored as an array (legacy data migration)
+  if (Array.isArray(this.frameworkType)) {
+    this.frameworkType = this.frameworkType[0] || undefined;
+  }
+  // Ensure frameworkType is a string if present
+  if (this.frameworkType !== undefined && this.frameworkType !== null && typeof this.frameworkType !== 'string') {
+    this.frameworkType = String(this.frameworkType).trim();
+  }
+  if (this.frameworkType === '') {
+    this.frameworkType = undefined;
+  }
+  next();
+});
+
 // Index for efficient queries
 promptSchema.index({ role: 1, isActive: 1 });
 promptSchema.index({ frameworkType: 1 });
@@ -214,8 +266,36 @@ promptSchema.statics.getForGeneration = async function(frameworkType, subCategor
 
 // Increment usage count
 promptSchema.methods.incrementUsage = function() {
+  // Fix corrupted frameworkType if stored as array (legacy data)
+  if (Array.isArray(this.frameworkType)) {
+    this.frameworkType = this.frameworkType[0] || undefined;
+  }
+  if (this.frameworkType !== undefined && this.frameworkType !== null && typeof this.frameworkType !== 'string') {
+    this.frameworkType = String(this.frameworkType).trim();
+  }
+  if (this.frameworkType === '') {
+    this.frameworkType = undefined;
+  }
+
+  // Fix other corrupted fields
+  const validCategories = ['instagram', 'facebook', 'youtube', 'linkedin', 'landing_page', 'email', 'video', 'general'];
+  if (this.category && !validCategories.includes(this.category)) {
+    this.category = 'general';
+  }
+
+  const validPlatforms = ['instagram', 'facebook', 'youtube', 'linkedin', 'google_ads', 'landing_page', 'email', 'video', 'all'];
+  if (this.platform && !validPlatforms.includes(this.platform)) {
+    this.platform = 'all';
+  }
+
+  const validCreativeTypes = ['image', 'carousel', 'video', 'story', 'reel', 'copy', 'script', 'landing_page', 'email', 'all'];
+  if (this.creativeType && !validCreativeTypes.includes(this.creativeType)) {
+    this.creativeType = 'all';
+  }
+
   this.usageCount += 1;
-  return this.save();
+  // Skip validation since we're only updating usageCount and fixing corrupted data
+  return this.save({ validateBeforeSave: false });
 };
 
 // Export framework types for use in other files

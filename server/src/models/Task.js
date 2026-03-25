@@ -483,6 +483,61 @@ taskSchema.methods.addRevision = function(userId, note, oldStatus, newStatus) {
   return this;
 };
 
+// Pre-validate hook to fix corrupted framework fields (handle legacy array data)
+// This runs BEFORE validation so we can fix data before Mongoose validates it
+taskSchema.pre('validate', function(next) {
+  // Fix aiFramework if it's stored as an array (legacy data)
+  if (Array.isArray(this.aiFramework)) {
+    this.aiFramework = this.aiFramework[0] || undefined;
+  }
+  if (this.aiFramework !== undefined && this.aiFramework !== null && typeof this.aiFramework !== 'string') {
+    this.aiFramework = String(this.aiFramework).trim();
+  }
+  if (this.aiFramework === '') {
+    this.aiFramework = undefined;
+  }
+
+  // Fix contentFramework if it's stored as an array (legacy data)
+  if (Array.isArray(this.contentFramework)) {
+    this.contentFramework = this.contentFramework[0] || undefined;
+  }
+  if (this.contentFramework !== undefined && this.contentFramework !== null && typeof this.contentFramework !== 'string') {
+    this.contentFramework = String(this.contentFramework).trim();
+  }
+  if (this.contentFramework === '') {
+    this.contentFramework = undefined;
+  }
+
+  next();
+});
+
+// Pre-save hook to fix corrupted framework fields (handle legacy array data)
+taskSchema.pre('save', function(next) {
+  // Fix aiFramework if it's stored as an array (legacy data)
+  if (Array.isArray(this.aiFramework)) {
+    this.aiFramework = this.aiFramework[0] || undefined;
+  }
+  if (this.aiFramework !== undefined && this.aiFramework !== null && typeof this.aiFramework !== 'string') {
+    this.aiFramework = String(this.aiFramework).trim();
+  }
+  if (this.aiFramework === '') {
+    this.aiFramework = undefined;
+  }
+
+  // Fix contentFramework if it's stored as an array (legacy data)
+  if (Array.isArray(this.contentFramework)) {
+    this.contentFramework = this.contentFramework[0] || undefined;
+  }
+  if (this.contentFramework !== undefined && this.contentFramework !== null && typeof this.contentFramework !== 'string') {
+    this.contentFramework = String(this.contentFramework).trim();
+  }
+  if (this.contentFramework === '') {
+    this.contentFramework = undefined;
+  }
+
+  next();
+});
+
 const Task = mongoose.model('Task', taskSchema);
 
 module.exports = Task;
