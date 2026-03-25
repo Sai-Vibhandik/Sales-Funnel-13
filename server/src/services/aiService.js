@@ -13,6 +13,7 @@ const OPENAI_BASE_URL = 'https://api.openai.com/v1';
 // Ollama Configuration
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3';
+const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY;
 const OLLAMA_TIMEOUT = parseInt(process.env.OLLAMA_TIMEOUT) || 60000;
 
 // Gemini Configuration
@@ -104,11 +105,18 @@ async function generateWithOllama(systemPrompt, userPrompt) {
   const timeoutId = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT);
 
   try {
+    // Prepare headers - add Authorization if API key is configured
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    if (OLLAMA_API_KEY) {
+      headers['Authorization'] = `Bearer ${OLLAMA_API_KEY}`;
+    }
+
     const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers,
       body: JSON.stringify({
         model: OLLAMA_MODEL,
         prompt: `${systemPrompt}\n\n${userPrompt}`,
@@ -265,9 +273,14 @@ async function generateWithHypereal(systemPrompt, userPrompt) {
 
 /**
  * Main generate function - routes to appropriate AI provider
+ * @param {string} systemPrompt - System prompt
+ * @param {string} userPrompt - User prompt
+ * @param {string} provider - Optional provider override (ollama, gemini, openai, hypereal)
  */
-async function generateContent(systemPrompt, userPrompt) {
-  switch (AI_PROVIDER.toLowerCase()) {
+async function generateContent(systemPrompt, userPrompt, provider = null) {
+  const activeProvider = provider || AI_PROVIDER.toLowerCase();
+
+  switch (activeProvider) {
     case 'openai':
       return generateWithOpenAI(systemPrompt, userPrompt);
     case 'ollama':
@@ -277,15 +290,20 @@ async function generateContent(systemPrompt, userPrompt) {
     case 'hypereal':
       return generateWithHypereal(systemPrompt, userPrompt);
     default:
-      // Default to OpenAI
-      return generateWithOpenAI(systemPrompt, userPrompt);
+      // Default to Ollama
+      return generateWithOllama(systemPrompt, userPrompt);
   }
 }
 
 /**
  * Generate content brief for content planner
+ * @param {Object} params - Parameters
+ * @param {string} params.framework - Framework name
+ * @param {string} params.frameworkTemplate - Framework template
+ * @param {Object} params.context - Context object
+ * @param {string} params.provider - Optional AI provider override
  */
-async function generateContentBrief({ framework, frameworkTemplate, context }) {
+async function generateContentBrief({ framework, frameworkTemplate, context, provider = null }) {
   // Build the user prompt with context
   const userPrompt = buildContentBriefPrompt(framework, frameworkTemplate, context);
 
@@ -308,7 +326,7 @@ FRAMEWORK: ${framework}
 Generate the content brief now:`;
 
   try {
-    const content = await generateContent(systemPrompt, userPrompt);
+    const content = await generateContent(systemPrompt, userPrompt, provider);
     return content;
   } catch (error) {
     console.error('Error generating content brief:', error);
@@ -449,7 +467,14 @@ async function checkAIHealth() {
         };
 
       case 'ollama':
-        const ollamaResponse = await fetch(`${OLLAMA_BASE_URL}/api/tags`);
+        // Prepare headers - add Authorization if API key is configured
+        const ollamaHeaders = {};
+        if (OLLAMA_API_KEY) {
+          ollamaHeaders['Authorization'] = `Bearer ${OLLAMA_API_KEY}`;
+        }
+        const ollamaResponse = await fetch(`${OLLAMA_BASE_URL}/api/tags`, {
+          headers: ollamaHeaders
+        });
         if (!ollamaResponse.ok) {
           return { available: false, error: 'Ollama not responding' };
         }

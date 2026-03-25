@@ -794,7 +794,10 @@ export default function PromptsPage() {
                 : 'bg-red-100 text-red-700'
             }`}>
               <Cpu className="w-4 h-4" />
-              <span>Ollama: {ollamaStatus.available ? 'Connected' : 'Offline'}</span>
+              <span>
+                {ollamaStatus.currentProvider?.toUpperCase() || 'AI'}: {ollamaStatus.available ? 'Connected' : 'Offline'}
+                {ollamaStatus.model && ` (${ollamaStatus.model})`}
+              </span>
             </div>
           )}
           <Button onClick={openAddModal}>
@@ -805,32 +808,7 @@ export default function PromptsPage() {
       </div>
 
       {/* Framework Overview for Content Planner */}
-      <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200">
-        <CardBody className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-purple-100 rounded-lg">
-              <BookOpen className="w-6 h-6 text-purple-600" />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-lg font-semibold text-gray-900">Marketing Framework Templates</h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Content Planner prompts use pre-built marketing frameworks. Each framework is designed for specific content goals and funnel stages.
-                Select a role to see available prompts, or create new ones using the frameworks below.
-              </p>
-              <div className="flex flex-wrap gap-2 mt-3">
-                {frameworkOptions.slice(0, 6).map(f => (
-                  <span key={f.value} className="px-2 py-1 text-xs bg-white rounded-full text-purple-700 border border-purple-200">
-                    {f.value}
-                  </span>
-                ))}
-                <span className="px-2 py-1 text-xs bg-white rounded-full text-gray-500 border border-gray-200">
-                  +{frameworkOptions.length - 6} more
-                </span>
-              </div>
-            </div>
-          </div>
-        </CardBody>
-      </Card>
+     
 
       {/* Search and Filter */}
       <Card>
@@ -1078,7 +1056,7 @@ export default function PromptsPage() {
             <div>
               {filterRole !== 'content_writer' && (
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  {roleOptions.find(r => r.value === filterRole)?.label || 'Other Prompts'}
+                  {roleOptions.find(r => r.value === filterRole)?.label}
                 </h3>
               )}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

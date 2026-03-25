@@ -73,6 +73,11 @@ export default function TaskDetailPage() {
   const [aiBrief, setAiBrief] = useState('');
   const [showFrameworkSelector, setShowFrameworkSelector] = useState(false);
 
+  // AI Provider state
+  const [aiProviders, setAiProviders] = useState([]);
+  const [selectedProvider, setSelectedProvider] = useState('ollama');
+  const [providerStatus, setProviderStatus] = useState(null);
+
   // Prompt Template search state
   const [promptSearchTerm, setPromptSearchTerm] = useState('');
   const [showPromptDropdown, setShowPromptDropdown] = useState(false);
@@ -127,6 +132,7 @@ export default function TaskDetailPage() {
     if (['content_writer', 'graphic_designer'].includes(user?.role)) {
       fetchAIFrameworks();
       fetchSubCategories();
+      fetchAIProviders();
     }
   }, [user]);
 
@@ -169,6 +175,28 @@ export default function TaskDetailPage() {
       setAiFrameworks(response.data || []);
     } catch (error) {
       console.error('Failed to fetch frameworks:', error);
+    }
+  };
+
+  const fetchAIProviders = async () => {
+    try {
+      const response = await aiService.getProviders();
+      setAiProviders(response.data?.providers || []);
+      setSelectedProvider(response.data?.preferredProvider || 'ollama');
+      setProviderStatus(response.data?.status || null);
+    } catch (error) {
+      console.error('Failed to fetch AI providers:', error);
+    }
+  };
+
+  const handleProviderChange = async (provider) => {
+    try {
+      await aiService.setProvider(provider);
+      setSelectedProvider(provider);
+      toast.success(`AI provider changed to ${provider}`);
+    } catch (error) {
+      toast.error('Failed to change AI provider');
+      console.error('Error changing AI provider:', error);
     }
   };
 
@@ -955,6 +983,29 @@ export default function TaskDetailPage() {
                 </p>
               </CardHeader>
               <CardBody className="p-6">
+                {/* AI Provider Selector */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    AI Provider
+                  </label>
+                  <div className="flex items-center gap-4">
+                    <select
+                      value={selectedProvider}
+                      onChange={(e) => handleProviderChange(e.target.value)}
+                      className="px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 bg-white"
+                    >
+                      {aiProviders.map(p => (
+                        <option key={p.value} value={p.value}>{p.label}</option>
+                      ))}
+                    </select>
+                    {providerStatus && (
+                      <span className={`text-sm ${providerStatus.available ? 'text-green-600' : 'text-red-600'}`}>
+                        {providerStatus.available ? '✓ Connected' : '✗ Offline'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
                 {/* Framework Selector */}
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">

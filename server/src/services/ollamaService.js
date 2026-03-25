@@ -5,6 +5,7 @@
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama3';
+const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY;
 const OLLAMA_TIMEOUT = parseInt(process.env.OLLAMA_TIMEOUT) || 60000; // 60 seconds default
 
 /**
@@ -120,11 +121,18 @@ async function callOllama(systemPrompt, userPrompt) {
   const timeoutId = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT);
 
   try {
+    // Prepare headers - add Authorization if API key is configured
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    if (OLLAMA_API_KEY) {
+      headers['Authorization'] = `Bearer ${OLLAMA_API_KEY}`;
+    }
+
     const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers,
       body: JSON.stringify({
         model: OLLAMA_MODEL,
         prompt: `${systemPrompt}\n\n${userPrompt}`,
@@ -168,11 +176,18 @@ async function callOllama(systemPrompt, userPrompt) {
  */
 async function checkOllamaHealth() {
   try {
+    // Prepare headers - add Authorization if API key is configured
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    if (OLLAMA_API_KEY) {
+      headers['Authorization'] = `Bearer ${OLLAMA_API_KEY}`;
+    }
+
     const response = await fetch(`${OLLAMA_BASE_URL}/api/tags`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
+      headers
     });
 
     if (!response.ok) {

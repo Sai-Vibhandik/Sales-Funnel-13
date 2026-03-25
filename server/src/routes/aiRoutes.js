@@ -5,7 +5,9 @@ const {
   generateContentBrief,
   regenerateContentBrief,
   getAIStatus,
-  getFrameworks
+  getFrameworks,
+  getAIProviders,
+  setAIProvider
 } = require('../controllers/aiController');
 
 // All routes require authentication
@@ -15,6 +17,16 @@ router.use(protect);
 // @desc    Get available frameworks
 // @access  Private
 router.get('/frameworks', getFrameworks);
+
+// @route   GET /api/ai/providers
+// @desc    Get available AI providers
+// @access  Private
+router.get('/providers', getAIProviders);
+
+// @route   PUT /api/ai/provider
+// @desc    Set user's preferred AI provider
+// @access  Private
+router.put('/provider', setAIProvider);
 
 // @route   GET /api/ai/status
 // @desc    Get AI service status

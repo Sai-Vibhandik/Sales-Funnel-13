@@ -110,10 +110,13 @@ exports.generateContentBrief = async (req, res, next) => {
     };
 
     // Generate the content brief
+    // Use user's preferred AI provider or default from env
+    const aiProvider = req.user?.preferredAIProvider || process.env.AI_PROVIDER || 'ollama';
     const contentBrief = await generateContentBrief({
       framework,
       frameworkTemplate: customPrompt || frameworkTemplate,
-      context
+      context,
+      provider: aiProvider
     });
 
     // Save the generated brief to the task
@@ -178,8 +181,10 @@ exports.regenerateContentBrief = async (req, res, next) => {
     // Verify user has access
     const isAssignedUser = task.assignedTo?.toString() === req.user._id.toString();
     const isAdmin = req.user.role === 'admin';
+    const isPerformanceMarketer = req.user.role === 'performance_marketer';
+    const isGraphicDesigner = req.user.role === 'graphic_designer';
 
-    if (!isAssignedUser && !isAdmin) {
+    if (!isAssignedUser && !isAdmin && !isPerformanceMarketer && !isGraphicDesigner) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to access this task'
@@ -247,10 +252,13 @@ exports.regenerateContentBrief = async (req, res, next) => {
     };
 
     // Generate new content brief
+    // Use user's preferred AI provider or default from env
+    const aiProvider = req.user?.preferredAIProvider || process.env.AI_PROVIDER || 'ollama';
     const contentBrief = await generateContentBrief({
       framework,
       frameworkTemplate: customPrompt || frameworkTemplate,
-      context
+      context,
+      provider: aiProvider
     });
 
     // Update task
@@ -331,6 +339,89 @@ exports.getFrameworks = async (req, res, next) => {
     res.status(200).json({
       success: true,
       data: frameworks
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Get available AI providers
+// @route   GET /api/ai/providers
+// @access  Private
+exports.getAIProviders = async (req, res, next) => {
+  try {
+    const providers = [
+      {
+        value: 'ollama',
+        label: 'Ollama (GLM-5)',
+        description: 'Local or cloud-based Ollama with GLM-5 model',
+        requiresApiKey: true
+      },
+      {
+        value: 'gemini',
+        label: 'Google Gemini',
+        description: 'Google Gemini 2.5 Flash model',
+        requiresApiKey: true
+      },
+      // {
+      //   value: 'openai',
+      //   label: 'OpenAI',
+      //   description: 'GPT-3.5/GPT-4 models',
+      //   requiresApiKey: true
+      // },
+      // {
+      //   value: 'hypereal',
+      //   label: 'Hypereal AI',
+      //   description: 'Claude Sonnet via Hypereal',
+      //   requiresApiKey: true
+      // }
+    ];
+
+    // Get user's preferred provider
+    const preferredProvider = req.user.preferredAIProvider || 'ollama';
+
+    // Check health status for each provider
+    const status = await checkAIHealth();
+
+    res.status(200).json({
+      success: true,
+      data: {
+        providers,
+        preferredProvider,
+        currentProvider: process.env.AI_PROVIDER || 'ollama',
+        status
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// @desc    Set user's preferred AI provider
+// @route   PUT /api/ai/provider
+// @access  Private
+exports.setAIProvider = async (req, res, next) => {
+  try {
+    const { provider } = req.body;
+    const validProviders = ['ollama', 'gemini'];
+
+    if (!provider || !validProviders.includes(provider)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid provider. Must be one of: ollama, gemini'
+      });
+    }
+
+    // Update user's preferred provider
+    req.user.preferredAIProvider = provider;
+    await req.user.save();
+
+    res.status(200).json({
+      success: true,
+      message: `AI provider set to ${provider}`,
+      data: {
+        preferredProvider: provider
+      }
     });
   } catch (error) {
     next(error);

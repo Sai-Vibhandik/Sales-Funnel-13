@@ -282,6 +282,8 @@ export const aiService = {
   generateBrief: (data) => api.post('/ai/generate-brief', data),
   regenerateBrief: (taskId, data) => api.post(`/ai/regenerate-brief/${taskId}`, data),
   getStatus: () => api.get('/ai/status'),
+  getProviders: () => api.get('/ai/providers'),
+  setProvider: (provider) => api.put('/ai/provider', { provider }),
 };
 
 export default api;

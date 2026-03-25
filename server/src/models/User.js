@@ -52,6 +52,12 @@ const userSchema = new mongoose.Schema({
   },
   resetPasswordExpire: {
     type: Date
+  },
+  // AI Provider preference (for content generation)
+  preferredAIProvider: {
+    type: String,
+    enum: ['gemini', 'ollama'],
+    default: 'ollama'
   }
 }, {
   timestamps: true

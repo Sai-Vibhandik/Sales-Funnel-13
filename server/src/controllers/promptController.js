@@ -1,6 +1,7 @@
 const Prompt = require('../models/Prompt');
 const FrameworkCategory = require('../models/FrameworkCategory');
 const { generateFinalPrompt, checkOllamaHealth } = require('../services/ollamaService');
+const { checkAIHealth, AI_PROVIDER } = require('../services/aiService');
 const { getFrameworkTemplate, getFrameworkTypes, replaceTemplatePlaceholders } = require('../utils/frameworkTemplates');
 
 // @desc    Get all prompts (with filters)
@@ -627,15 +628,19 @@ exports.getFrameworkTypes = async (req, res, next) => {
 // @access  Private (Admin only)
 exports.getOllamaStatus = async (req, res, next) => {
   try {
-    // Only admin can check Ollama status
+    // Only admin can check AI status
     if (req.user.role !== 'admin') {
       return res.status(403).json({
         success: false,
-        message: 'Only admins can check Ollama status'
+        message: 'Only admins can check AI status'
       });
     }
 
-    const status = await checkOllamaHealth();
+    // Use unified AI health check
+    const status = await checkAIHealth();
+
+    // Add current provider info
+    status.currentProvider = AI_PROVIDER;
 
     res.status(200).json({
       success: true,
