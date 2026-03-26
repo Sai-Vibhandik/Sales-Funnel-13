@@ -100,6 +100,62 @@ async function generateWithOpenAI(systemPrompt, userPrompt) {
 /**
  * Generate content using Ollama
  */
+// async function generateWithOllama(systemPrompt, userPrompt) {
+//   const controller = new AbortController();
+//   const timeoutId = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT);
+
+//   try {
+//     // Prepare headers - add Authorization if API key is configured
+//     const headers = {
+//       'Content-Type': 'application/json'
+//     };
+
+//     if (OLLAMA_API_KEY) {
+//       headers['Authorization'] = `Bearer ${OLLAMA_API_KEY}`;
+//     }
+
+//     const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
+//       method: 'POST',
+//       headers,
+//       body: JSON.stringify({
+//         model: OLLAMA_MODEL,
+//         prompt: `${systemPrompt}\n\n${userPrompt}`,
+//         stream: false,
+//         options: {
+//           temperature: 0.7,
+//           top_p: 0.9,
+//           top_k: 40
+//         }
+//       }),
+//       signal: controller.signal
+//     });
+
+//     clearTimeout(timeoutId);
+
+//     if (!response.ok) {
+//       const errorText = await response.text();
+//       throw new Error(`Ollama API error: ${response.status} - ${errorText}`);
+//     }
+
+//     const data = await response.json();
+
+//     if (!data.response) {
+//       throw new Error('No response from Ollama');
+//     }
+
+//     return data.response.trim();
+//   } catch (error) {
+//     clearTimeout(timeoutId);
+
+//     if (error.name === 'AbortError') {
+//       throw new Error('Ollama request timed out');
+//     }
+
+//     throw error;
+//   }
+// }
+
+
 async function generateWithOllama(systemPrompt, userPrompt) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), OLLAMA_TIMEOUT);
@@ -114,12 +170,29 @@ async function generateWithOllama(systemPrompt, userPrompt) {
       headers['Authorization'] = `Bearer ${OLLAMA_API_KEY}`;
     }
 
-    const response = await fetch(`${OLLAMA_BASE_URL}/api/generate`, {
+    // Determine the endpoint URL
+    // If OLLAMA_BASE_URL already ends with /api/chat or /api/generate, use it as-is
+    // Otherwise append /api/chat
+    let endpointUrl = OLLAMA_BASE_URL;
+    if (!endpointUrl.endsWith('/api/chat') && !endpointUrl.endsWith('/api/generate')) {
+      endpointUrl = `${endpointUrl}/api/chat`;
+    }
+
+    const response = await fetch(endpointUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify({
         model: OLLAMA_MODEL,
-        prompt: `${systemPrompt}\n\n${userPrompt}`,
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt
+          },
+          {
+            role: "user",
+            content: userPrompt
+          }
+        ],
         stream: false,
         options: {
           temperature: 0.7,
@@ -139,11 +212,11 @@ async function generateWithOllama(systemPrompt, userPrompt) {
 
     const data = await response.json();
 
-    if (!data.response) {
+    if (!data.message || !data.message.content) {
       throw new Error('No response from Ollama');
     }
 
-    return data.response.trim();
+    return data.message.content.trim();
   } catch (error) {
     clearTimeout(timeoutId);
 

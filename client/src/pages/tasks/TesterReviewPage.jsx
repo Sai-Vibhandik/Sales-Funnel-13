@@ -59,6 +59,13 @@ export default function TesterReviewPage() {
   };
 
   const handleApprove = async (task) => {
+    // Check if task is in reviewable status before attempting approval
+    const reviewableStatuses = ['content_submitted', 'design_submitted', 'development_submitted', 'submitted'];
+    if (!reviewableStatuses.includes(task.status)) {
+      toast.error(`Cannot approve: Task status is "${task.status}" (needs to be in submitted status)`);
+      return;
+    }
+
     try {
       await taskService.testerReview(task._id, { approved: true });
       toast.success('Task approved and moved to next stage');

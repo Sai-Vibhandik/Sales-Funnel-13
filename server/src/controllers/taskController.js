@@ -570,9 +570,10 @@ exports.testerReview = async (req, res, next) => {
 
     // Check if task can be reviewed by tester
     if (!task.canBeReviewedByTester()) {
+      console.log(`[TesterReview] Task ${taskId} cannot be reviewed. Current status: ${task.status}, Task type: ${task.taskType}`);
       return res.status(400).json({
         success: false,
-        message: 'This task cannot be reviewed by tester in its current status'
+        message: `This task cannot be reviewed by tester in its current status (${task.status}). Task must be in submitted status.`
       });
     }
 

@@ -101,8 +101,10 @@ export default function TeamMemberProjectView() {
   // Filter tasks based on role
   const filteredTasks = tasks.filter(task => {
     if (isDeveloper) {
-      // Developers only see landing page development tasks
-      return task.taskType === 'landing_page_development';
+      // Developers only see landing page development tasks that have been approved by marketer
+      // (design approved, ready for development)
+      return task.taskType === 'landing_page_development' &&
+             ['development_pending', 'development_submitted', 'development_approved', 'final_approved'].includes(task.status);
     }
     if (isUIDesigner) {
       // UI/UX Designers only see landing page design tasks

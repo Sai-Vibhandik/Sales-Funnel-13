@@ -432,6 +432,13 @@ export default function TaskDetailPage() {
   };
 
   const handleTesterApprove = async () => {
+    // Check if task is in reviewable status before attempting approval
+    const reviewableStatuses = ['content_submitted', 'design_submitted', 'development_submitted', 'submitted'];
+    if (!reviewableStatuses.includes(task.status)) {
+      toast.error(`Cannot approve: Task status is "${task.status}" (needs to be in submitted status)`);
+      return;
+    }
+
     try {
       await taskService.testerReview(task._id, { approved: true });
       toast.success('Task approved successfully');
@@ -1715,8 +1722,8 @@ export default function TaskDetailPage() {
             </Card>
           )}
 
-          {/* Submitted Implementation - For Testers reviewing landing page development */}
-          {task.taskType === 'landing_page_development' && ['development_submitted', 'development_approved'].includes(task.status) && (task.implementationUrl || task.repoLink || task.devNotes) && (
+          {/* Submitted Implementation - Show when developer has submitted work */}
+          {task.taskType === 'landing_page_development' && task.implementationUrl && (
             <Card>
               <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
                 <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -1724,7 +1731,7 @@ export default function TaskDetailPage() {
                   Submitted Implementation
                 </h2>
                 <p className="text-sm text-gray-500 mt-1">
-                  Implementation submitted by Developer for review
+                  Implementation submitted by Developer
                 </p>
               </CardHeader>
               <CardBody className="p-6">

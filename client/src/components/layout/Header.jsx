@@ -42,17 +42,6 @@ export default function Header() {
     }
   };
 
-  // Handle notification click
-  const handleNotificationClick = async (notification) => {
-    if (!notification.isRead) {
-      await markAsRead(notification._id);
-    }
-    if (notification.projectId) {
-      navigate(`/projects/${notification.projectId}`);
-    }
-    setShowNotifications(false);
-  };
-
   return (
     <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-lg border-b border-gray-100">
       <div className="flex items-center justify-between h-16 px-6">
@@ -121,9 +110,8 @@ export default function Header() {
                       notifications.slice(0, 10).map((notification) => (
                         <div
                           key={notification._id}
-                          onClick={() => handleNotificationClick(notification)}
                           className={cn(
-                            'p-4 hover:bg-gray-50 cursor-pointer transition-colors border-b border-gray-50 last:border-0',
+                            'p-4 border-b border-gray-50 last:border-0',
                             !notification.isRead && 'bg-primary-50/30'
                           )}
                         >
