@@ -6,11 +6,18 @@ const { hasProjectAccess } = require('../utils/auth');
 
 const checkProjectAccess = async (projectId, user) => {
   const project = await Project.findById(projectId)
-    .populate('assignedTeam.performanceMarketer', '_id')
-    .populate('assignedTeam.uiUxDesigner', '_id')
-    .populate('assignedTeam.graphicDesigner', '_id')
-    .populate('assignedTeam.developer', '_id')
-    .populate('assignedTeam.tester', '_id');
+    // New array fields
+    .populate('assignedTeam.performanceMarketers', '_id name')
+    .populate('assignedTeam.uiUxDesigners', '_id name')
+    .populate('assignedTeam.graphicDesigners', '_id name')
+    .populate('assignedTeam.developers', '_id name')
+    .populate('assignedTeam.testers', '_id name')
+    // Legacy fields
+    .populate('assignedTeam.performanceMarketer', '_id name')
+    .populate('assignedTeam.uiUxDesigner', '_id name')
+    .populate('assignedTeam.graphicDesigner', '_id name')
+    .populate('assignedTeam.developer', '_id name')
+    .populate('assignedTeam.tester', '_id name');
 
   if (!project) {
     return { project: null, error: { status: 404, message: 'Project not found' } };
@@ -416,6 +423,13 @@ const generateLandingPageTasks = async (project, landingPage, userId) => {
   };
 
   // Create design task
+  // Get UI/UX designer from either new array field or legacy field
+  const uiuxDesignerId = project.assignedTeam?.uiUxDesigners?.[0]?._id ||
+                          project.assignedTeam?.uiUxDesigners?.[0] ||
+                          project.assignedTeam?.uiUxDesigner?._id ||
+                          project.assignedTeam?.uiUxDesigner ||
+                          null;
+
   const designTask = {
     projectId: project._id,
     landingPageId: landingPage._id,
@@ -423,7 +437,7 @@ const generateLandingPageTasks = async (project, landingPage, userId) => {
     taskType: 'landing_page_design',
     assetType: 'landing_page_design',
     assignedRole: 'ui_ux_designer',
-    assignedTo: project.assignedTeam?.uiUxDesigner || null,
+    assignedTo: uiuxDesignerId,
     assignedBy: userId,
     createdBy: userId,
     status: 'design_pending',
@@ -432,6 +446,14 @@ const generateLandingPageTasks = async (project, landingPage, userId) => {
   };
 
   // Create development task
+  // IMPORTANT: Developer is NOT assigned here. They will be assigned when design is approved by marketer.
+  // Get developer from either new array field or legacy field
+  const developerId = project.assignedTeam?.developers?.[0]?._id ||
+                      project.assignedTeam?.developers?.[0] ||
+                      project.assignedTeam?.developer?._id ||
+                      project.assignedTeam?.developer ||
+                      null;
+
   const devTask = {
     projectId: project._id,
     landingPageId: landingPage._id,
@@ -439,10 +461,12 @@ const generateLandingPageTasks = async (project, landingPage, userId) => {
     taskType: 'landing_page_development',
     assetType: 'landing_page_page',
     assignedRole: 'developer',
-    assignedTo: project.assignedTeam?.developer || null,
+    assignedTo: null,  // Developer will be assigned when design is approved
+    developerId: developerId,  // Store for later assignment
     assignedBy: userId,
     createdBy: userId,
     status: 'development_pending',
+    description: 'This task will become active after the design is approved by the tester and marketer.',
     strategyContext,
     contextLink: `${process.env.CLIENT_URL}/landing-page-strategy?projectId=${project._id}&landingPageId=${landingPage._id}`
   };

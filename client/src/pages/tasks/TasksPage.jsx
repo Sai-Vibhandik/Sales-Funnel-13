@@ -441,12 +441,17 @@ export default function TasksPage() {
                     )}
 
                     {/* Rejection Note */}
-                    {task.status === 'rejected' && task.rejectionNote && (
+                    {(task.status === 'rejected' || (task.status === 'development_pending' && task.rejectionNote)) && (
                       <div className="mt-3 p-3 bg-red-50 rounded border border-red-200">
                         <h4 className="text-sm font-medium text-red-800 mb-1 flex items-center gap-1">
                           <AlertCircle className="w-4 h-4" />
                           Rejection Feedback
                         </h4>
+                        {task.rejectionReason && (
+                          <p className="text-xs text-red-600 mb-1">
+                            <span className="font-medium">Category:</span> {task.rejectionReason}
+                          </p>
+                        )}
                         <p className="text-sm text-red-700">{task.rejectionNote}</p>
                       </div>
                     )}

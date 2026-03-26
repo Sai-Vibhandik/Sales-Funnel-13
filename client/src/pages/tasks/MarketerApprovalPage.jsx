@@ -5,7 +5,8 @@ import { Card, CardBody, Button, Spinner, Textarea, Badge } from '@/components/u
 import { taskService } from '@/services/api';
 import {
   Clock, CheckCircle, XCircle, Eye, FileText, Palette, Video, Layout, Code,
-  AlertCircle, ExternalLink, User, Link, MessageSquare, FileIcon, Download
+  AlertCircle, ExternalLink, User, Link, MessageSquare, FileIcon, Download,
+  ArrowRight
 } from 'lucide-react';
 
 const TASK_TYPES = {
@@ -19,7 +20,18 @@ const TASK_TYPES = {
 const STATUS_LABELS = {
   approved_by_tester: 'Tester Approved - Pending Your Review',
   development_approved: 'Development Approved - Pending Your Review',
+  design_approved: 'Design Approved - Pending Your Review',
 };
+
+const REJECTION_REASONS = [
+  { value: 'quality', label: 'Quality issues' },
+  { value: 'brand', label: 'Brand guideline mismatch' },
+  { value: 'instructions', label: 'Did not follow instructions' },
+  { value: 'design', label: 'Design/Layout issues' },
+  { value: 'content', label: 'Content/Copy issues' },
+  { value: 'technical', label: 'Technical issues' },
+  { value: 'other', label: 'Other' },
+];
 
 export default function MarketerApprovalPage() {
   const navigate = useNavigate();
@@ -28,6 +40,7 @@ export default function MarketerApprovalPage() {
   const [selectedTask, setSelectedTask] = useState(null);
   const [showRejectionModal, setShowRejectionModal] = useState(false);
   const [rejectionNote, setRejectionNote] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
 
   useEffect(() => {
     fetchPendingTasks();
@@ -64,12 +77,14 @@ export default function MarketerApprovalPage() {
     try {
       await taskService.marketerReview(selectedTask._id, {
         approved: false,
-        rejectionNote
+        rejectionNote,
+        rejectionReason
       });
       toast.success('Task rejected with feedback');
       setShowRejectionModal(false);
       setSelectedTask(null);
       setRejectionNote('');
+      setRejectionReason('');
       fetchPendingTasks();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to reject task');
@@ -79,6 +94,7 @@ export default function MarketerApprovalPage() {
   const openRejectionModal = (task) => {
     setSelectedTask(task);
     setRejectionNote('');
+    setRejectionReason('');
     setShowRejectionModal(true);
   };
 
@@ -296,6 +312,60 @@ export default function MarketerApprovalPage() {
                       </>
                     )}
 
+                    {/* ============ LANDING PAGE DESIGN SPECIFIC ============ */}
+                    {task.taskType === 'landing_page_design' && (
+                      <>
+                        {/* Design Link */}
+                        {task.designLink && (
+                          <div className="mt-3 p-4 bg-purple-50 rounded-lg border border-purple-200">
+                            <h4 className="text-sm font-medium text-purple-800 mb-2 flex items-center gap-2">
+                              <Link className="w-4 h-4" />
+                              Design Link
+                            </h4>
+                            <a
+                              href={task.designLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-purple-600 hover:underline flex items-center gap-1 text-sm break-all"
+                            >
+                              {task.designLink}
+                              <ExternalLink className="w-4 h-4 flex-shrink-0" />
+                            </a>
+                          </div>
+                        )}
+
+                        {/* Design File */}
+                        {task.designFile?.path && (
+                          <div className="mt-3 p-4 bg-gray-50 rounded-lg border">
+                            <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                              <FileIcon className="w-4 h-4" />
+                              Design File
+                            </h4>
+                            <a
+                              href={task.designFile.path}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-3 py-1.5 bg-white border rounded text-sm text-blue-600 hover:bg-gray-100 flex items-center gap-1 w-fit"
+                            >
+                              <Download className="w-3 h-3" />
+                              {task.designFile.name || 'Download Design File'}
+                            </a>
+                          </div>
+                        )}
+
+                        {/* Designer Notes */}
+                        {task.designNotes && (
+                          <div className="mt-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                            <h4 className="text-sm font-medium text-blue-800 mb-2 flex items-center gap-2">
+                              <MessageSquare className="w-4 h-4" />
+                              Notes from Designer
+                            </h4>
+                            <p className="text-sm text-gray-700">{task.designNotes}</p>
+                          </div>
+                        )}
+                      </>
+                    )}
+
                     {/* ============ LANDING PAGE DEVELOPMENT SPECIFIC ============ */}
                     {task.taskType === 'landing_page_development' && (
                       <>
@@ -458,9 +528,17 @@ export default function MarketerApprovalPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => navigate(`/projects/${task.projectId?._id}`)}
+                      onClick={() => navigate(`/tasks/${task._id}`)}
                     >
                       <Eye className="w-4 h-4 mr-1" />
+                      View Task
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => navigate(`/projects/${task.projectId?._id}`)}
+                    >
+                      <ArrowRight className="w-4 h-4 mr-1" />
                       View Project
                     </Button>
                   </div>
@@ -481,7 +559,24 @@ export default function MarketerApprovalPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Feedback for Revision
+                  Reason for Rejection
+                </label>
+                <select
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  <option value="">Select a reason...</option>
+                  {REJECTION_REASONS.map(reason => (
+                    <option key={reason.value} value={reason.value}>
+                      {reason.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Detailed Feedback
                 </label>
                 <Textarea
                   value={rejectionNote}

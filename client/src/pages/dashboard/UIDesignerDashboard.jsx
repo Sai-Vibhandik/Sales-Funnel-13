@@ -71,7 +71,20 @@ function StatCard({ title, value, change, changeType, icon: Icon, iconBg }) {
 
 // Task Card Component with hover effects
 function TaskCard({ task, onClick }) {
-  const statusConfig = getStatusConfig(task.status);
+  // For UI/UX Designer, development_pending for landing_page_design means their work is complete
+  // Show "Completed" status instead of "Pending"
+  const getDisplayStatus = () => {
+    if (task.status === 'development_pending' && task.taskType === 'landing_page_design') {
+      return {
+        label: 'Completed',
+        bgColor: 'bg-emerald-100',
+        textColor: 'text-emerald-800'
+      };
+    }
+    return getStatusConfig(task.status);
+  };
+
+  const statusConfig = getDisplayStatus();
 
   return (
     <div
@@ -105,6 +118,11 @@ function TaskCard({ task, onClick }) {
           <p className="text-xs text-red-700 line-clamp-2">
             <span className="font-medium">Rejection Reason:</span> {task.rejectionNote}
           </p>
+          {task.rejectionReason && (
+            <p className="text-xs text-red-600 mt-1">
+              <span className="font-medium">Category:</span> {task.rejectionReason}
+            </p>
+          )}
         </div>
       )}
 

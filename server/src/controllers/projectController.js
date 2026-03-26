@@ -1128,8 +1128,16 @@ exports.completeLandingPageStage = async (req, res, next) => {
     const { id } = req.params;
 
     const project = await Project.findById(id)
+      // New array fields
+      .populate('assignedTeam.uiUxDesigners', '_id name email')
+      .populate('assignedTeam.developers', '_id name email')
+      .populate('assignedTeam.testers', '_id name email')
+      .populate('assignedTeam.performanceMarketers', '_id name email')
+      // Legacy fields
       .populate('assignedTeam.uiUxDesigner', '_id name email')
-      .populate('assignedTeam.developer', '_id name email');
+      .populate('assignedTeam.developer', '_id name email')
+      .populate('assignedTeam.tester', '_id name email')
+      .populate('assignedTeam.performanceMarketer', '_id name email');
 
     if (!project) {
       return res.status(404).json({
@@ -1204,6 +1212,21 @@ exports.completeLandingPageStage = async (req, res, next) => {
 
       const contextLink = `${process.env.CLIENT_URL}/projects/${id}/strategy-summary`;
 
+      // Get UI/UX designer from either new array field or legacy field
+      const uiuxDesignerId = project.assignedTeam?.uiUxDesigners?.[0]?._id ||
+                              project.assignedTeam?.uiUxDesigners?.[0] ||
+                              project.assignedTeam?.uiUxDesigner?._id ||
+                              project.assignedTeam?.uiUxDesigner ||
+                              null;
+
+      // Get developer from either new array field or legacy field
+      // IMPORTANT: Developer is NOT assigned here. They will be assigned when design is approved by marketer.
+      const developerId = project.assignedTeam?.developers?.[0]?._id ||
+                          project.assignedTeam?.developers?.[0] ||
+                          project.assignedTeam?.developer?._id ||
+                          project.assignedTeam?.developer ||
+                          null;
+
       // Create design task for UI/UX Designer
       const designTask = {
         projectId: id,
@@ -1212,7 +1235,7 @@ exports.completeLandingPageStage = async (req, res, next) => {
         taskType: 'landing_page_design',
         assetType: 'landing_page_design',
         assignedRole: 'ui_ux_designer',
-        assignedTo: project.assignedTeam?.uiUxDesigner?._id || null,
+        assignedTo: uiuxDesignerId,
         assignedBy: userId,
         createdBy: userId,
         status: 'design_pending',
@@ -1221,6 +1244,7 @@ exports.completeLandingPageStage = async (req, res, next) => {
       };
 
       // Create development task for Developer
+      // IMPORTANT: Developer is NOT assigned here. They will be assigned when design is approved by marketer.
       const devTask = {
         projectId: id,
         landingPageId: landingPage._id,
@@ -1228,10 +1252,12 @@ exports.completeLandingPageStage = async (req, res, next) => {
         taskType: 'landing_page_development',
         assetType: 'landing_page_page',
         assignedRole: 'developer',
-        assignedTo: project.assignedTeam?.developer?._id || null,
+        assignedTo: null,  // Developer will be assigned when design is approved
+        developerId: developerId,  // Store for later assignment
         assignedBy: userId,
         createdBy: userId,
         status: 'development_pending',
+        description: 'This task will become active after the design is approved by the tester and marketer.',
         strategyContext,
         contextLink
       };

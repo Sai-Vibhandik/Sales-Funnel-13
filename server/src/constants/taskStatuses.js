@@ -208,13 +208,13 @@ const STATUS_CONFIG = {
     description: 'Design submitted for tester review'
   },
   design_approved: {
-    label: 'Approved',
+    label: 'In Final Review',
     color: 'purple',
     bgColor: 'bg-purple-100',
     textColor: 'text-purple-800',
     icon: 'CheckCircle',
     group: 'design',
-    description: 'Design approved by tester, awaiting marketer review'
+    description: 'Tester approved, awaiting marketer review'
   },
   design_rejected: {
     label: 'Revision Needed',
@@ -246,13 +246,13 @@ const STATUS_CONFIG = {
     description: 'Development submitted for tester review'
   },
   development_approved: {
-    label: 'Approved',
+    label: 'In Final Review',
     color: 'purple',
     bgColor: 'bg-purple-100',
     textColor: 'text-purple-800',
     icon: 'CheckCircle',
     group: 'development',
-    description: 'Development approved by tester, awaiting marketer review'
+    description: 'Tester approved, awaiting marketer review'
   },
 
   // Final status

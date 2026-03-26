@@ -98,11 +98,16 @@ function TaskCard({ task, onClick }) {
       </div>
 
       {/* Show rejection reason if rejected */}
-      {['rejected'].includes(task.status) && task.rejectionNote && (
+      {(task.status === 'rejected' || (task.status === 'development_pending' && task.rejectionNote)) && (
         <div className="mb-3 p-2 bg-red-50 rounded-lg border border-red-200">
           <p className="text-xs text-red-700 line-clamp-2">
             <span className="font-medium">Rejection Reason:</span> {task.rejectionNote}
           </p>
+          {task.rejectionReason && (
+            <p className="text-xs text-red-600 mt-1">
+              <span className="font-medium">Category:</span> {task.rejectionReason}
+            </p>
+          )}
         </div>
       )}
 
@@ -180,9 +185,10 @@ export default function DeveloperDashboard({ user }) {
       t.status === 'final_approved'
     ).length;
 
-    // Tasks rejected
+    // Tasks rejected (includes development_pending with rejection notes)
     const rejectedTasks = taskList.filter(t =>
-      t.status === 'rejected'
+      t.status === 'rejected' ||
+      (t.status === 'development_pending' && t.rejectionNote)
     ).length;
 
     setStats({

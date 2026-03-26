@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/context/AuthContext';
-import { Card, CardBody, CardHeader, Button, Spinner, Badge } from '@/components/ui';
+import { Card, CardBody, CardHeader, Button, Spinner, Badge, Textarea } from '@/components/ui';
 import { taskService, promptService, aiService, frameworkCategoryService } from '@/services/api';
 import {
   ClipboardList, Play, Send, CheckCircle, XCircle, Clock,
@@ -53,8 +53,20 @@ export default function TaskDetailPage() {
   const [showModal, setShowModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectionNote, setRejectionNote] = useState('');
+  const [rejectionReason, setRejectionReason] = useState('');
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
+
+  // Rejection reasons for dropdown
+  const REJECTION_REASONS = [
+    { value: 'quality', label: 'Quality issues' },
+    { value: 'brand', label: 'Brand guideline mismatch' },
+    { value: 'instructions', label: 'Did not follow instructions' },
+    { value: 'design', label: 'Design/Layout issues' },
+    { value: 'content', label: 'Content/Copy issues' },
+    { value: 'technical', label: 'Technical issues' },
+    { value: 'other', label: 'Other' },
+  ];
 
   // Prompts state
   const [prompts, setPrompts] = useState([]);
@@ -89,11 +101,25 @@ export default function TaskDetailPage() {
     if (location.state?.from) {
       return location.state.from;
     }
-    // Default: Performance marketers go to /assets, others to /tasks
+    // Default based on user role
     if (user?.role === 'performance_marketer' || user?.role === 'admin') {
       return '/assets';
     }
+    if (user?.role === 'tester') {
+      return '/tester-review';
+    }
     return '/tasks';
+  };
+
+  // Handle back navigation - use browser history if available
+  const handleBack = () => {
+    // If we have navigation history, go back
+    if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      // Otherwise use the default URL
+      navigate(getBackUrl());
+    }
   };
 
   // Submission form state - different fields for different task types
@@ -423,11 +449,13 @@ export default function TaskDetailPage() {
     try {
       await taskService.testerReview(task._id, {
         approved: false,
-        rejectionNote: rejectionNote.trim()
+        rejectionNote: rejectionNote.trim(),
+        rejectionReason
       });
       toast.success('Task rejected with feedback');
       setShowRejectModal(false);
       setRejectionNote('');
+      setRejectionReason('');
       fetchTask();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to reject task');
@@ -452,11 +480,13 @@ export default function TaskDetailPage() {
     try {
       await taskService.marketerReview(task._id, {
         approved: false,
-        rejectionNote: rejectionNote.trim()
+        rejectionNote: rejectionNote.trim(),
+        rejectionReason
       });
       toast.success('Task rejected with feedback');
       setShowRejectModal(false);
       setRejectionNote('');
+      setRejectionReason('');
       fetchTask();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to reject task');
@@ -664,10 +694,10 @@ export default function TaskDetailPage() {
   };
 
   const canResubmitTask = () => {
-    // For landing page tasks that have specific pending statuses after rejection
-    // They can resubmit directly from design_pending or development_pending
+    // For landing page tasks that have been rejected
+    // They can resubmit from design_rejected or development_pending (with rejection notes)
     // Only show "Resubmit" if the task was previously rejected (has rejection note/reason)
-    return task && ['design_pending', 'development_pending'].includes(task.status) &&
+    return task && ['design_rejected', 'development_pending'].includes(task.status) &&
            (task.taskType === 'landing_page_design' || task.taskType === 'landing_page_development') &&
            (task.rejectionNote || task.rejectionReason) &&
            isAssignedUser();
@@ -713,7 +743,7 @@ export default function TaskDetailPage() {
       <div className="text-center py-12">
         <AlertCircle className="w-12 h-12 mx-auto text-gray-300 mb-4" />
         <p className="text-gray-500">Task not found</p>
-        <Button variant="secondary" onClick={() => navigate(getBackUrl())} className="mt-4">
+        <Button variant="secondary" onClick={handleBack} className="mt-4">
           Back
         </Button>
       </div>
@@ -727,7 +757,7 @@ export default function TaskDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate(getBackUrl())}>
+          <Button variant="ghost" onClick={handleBack}>
             <ArrowLeft className="w-4 h-4 mr-1" />
             Back
           </Button>
@@ -1685,6 +1715,73 @@ export default function TaskDetailPage() {
             </Card>
           )}
 
+          {/* Submitted Implementation - For Testers reviewing landing page development */}
+          {task.taskType === 'landing_page_development' && ['development_submitted', 'development_approved'].includes(task.status) && (task.implementationUrl || task.repoLink || task.devNotes) && (
+            <Card>
+              <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50">
+                <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                  <Code className="w-5 h-5 text-green-600" />
+                  Submitted Implementation
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  Implementation submitted by Developer for review
+                </p>
+              </CardHeader>
+              <CardBody className="p-6">
+                <div className="space-y-4">
+                  {/* Implementation URL */}
+                  {task.implementationUrl && (
+                    <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                      <h4 className="text-sm font-medium text-green-800 mb-2 flex items-center gap-2">
+                        <Link className="w-4 h-4" />
+                        Landing Page URL
+                      </h4>
+                      <a
+                        href={task.implementationUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-green-600 hover:underline flex items-center gap-1 text-sm break-all"
+                      >
+                        {task.implementationUrl}
+                        <ExternalLink className="w-4 h-4 flex-shrink-0" />
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Repository Link */}
+                  {task.repoLink && (
+                    <div className="p-4 bg-gray-50 rounded-lg border">
+                      <h4 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                        <Code className="w-4 h-4" />
+                        Repository Link
+                      </h4>
+                      <a
+                        href={task.repoLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline flex items-center gap-1 text-sm break-all"
+                      >
+                        {task.repoLink}
+                        <ExternalLink className="w-4 h-4 flex-shrink-0" />
+                      </a>
+                    </div>
+                  )}
+
+                  {/* Developer Notes */}
+                  {task.devNotes && (
+                    <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <h4 className="text-sm font-medium text-yellow-800 mb-2 flex items-center gap-2">
+                        <MessageSquare className="w-4 h-4" />
+                        Notes from Developer
+                      </h4>
+                      <p className="text-sm text-gray-700">{task.devNotes}</p>
+                    </div>
+                  )}
+                </div>
+              </CardBody>
+            </Card>
+          )}
+
           {/* Previously Submitted Work */}
           {task.outputFiles?.length > 0 && (
             <Card>
@@ -1719,14 +1816,19 @@ export default function TaskDetailPage() {
           )}
 
           {/* Rejection Note */}
-          {['rejected', 'content_rejected', 'design_rejected'].includes(task.status) && (task.rejectionNote || task.rejectionReason) && (
+          {(['rejected', 'content_rejected', 'design_rejected', 'development_pending'].includes(task.status) && (task.rejectionNote || task.rejectionReason)) && (
             <Card className="border-red-200">
               <CardBody className="p-6 bg-red-50">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 text-red-500 mt-0.5" />
                   <div>
                     <h3 className="font-medium text-red-800">Rejection Feedback</h3>
-                    <p className="mt-1 text-red-700">{task.rejectionNote || task.rejectionReason}</p>
+                    {task.rejectionReason && (
+                      <p className="text-sm text-red-600 mb-1">
+                        <span className="font-medium">Category:</span> {task.rejectionReason}
+                      </p>
+                    )}
+                    <p className="mt-1 text-red-700">{task.rejectionNote}</p>
                   </div>
                 </div>
               </CardBody>
@@ -2656,27 +2758,53 @@ export default function TaskDetailPage() {
       {/* Rejection Modal */}
       {showRejectModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Reject Task</h3>
-            <p className="text-gray-600 mb-4">
-              Please provide a reason for rejecting this task. This feedback will be shared with the assigned team member.
-            </p>
-            <textarea
-              value={rejectionNote}
-              onChange={(e) => setRejectionNote(e.target.value)}
-              placeholder="Enter rejection reason..."
-              rows={4}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
-              autoFocus
-            />
-            <div className="flex justify-end gap-3 mt-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <h2 className="text-xl font-semibold mb-4 text-red-600">Reject Task</h2>
+            <p className="text-gray-600 mb-4">{task?.taskTitle}</p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reason for Rejection
+                </label>
+                <select
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  <option value="">Select a reason...</option>
+                  {REJECTION_REASONS.map(reason => (
+                    <option key={reason.value} value={reason.value}>
+                      {reason.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Detailed Feedback
+                </label>
+                <Textarea
+                  value={rejectionNote}
+                  onChange={(e) => setRejectionNote(e.target.value)}
+                  placeholder="Provide specific feedback for improvement..."
+                  rows={4}
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
               <Button variant="secondary" onClick={() => {
                 setShowRejectModal(false);
                 setRejectionNote('');
+                setRejectionReason('');
               }}>
                 Cancel
               </Button>
-              <Button variant="danger" onClick={canTesterReview() ? handleTesterReject : handleMarketerReject}>
+              <Button
+                onClick={canTesterReview() ? handleTesterReject : handleMarketerReject}
+                className="bg-red-600 hover:bg-red-700"
+              >
                 <XCircle className="w-4 h-4 mr-1" />
                 Reject Task
               </Button>
